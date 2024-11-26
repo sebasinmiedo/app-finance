@@ -108,6 +108,48 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
     });
   }
 
+  Future<void> _editarTransaccion(
+    int id,
+    String titulo,
+    String descripcion,
+    String tipo,
+    double monto,
+    int categoriaId,
+    DateTime fecha,
+  ) async {
+    final DateTime fechaCompleta = DateTime(
+      fecha.year,
+      fecha.month,
+      fecha.day,
+      horaSeleccionada?.hour ?? 0,
+      horaSeleccionada?.minute ?? 0,
+    );
+
+    await db.update(
+      'transacciones',
+      {
+        'titulo': titulo,
+        'descripcion': descripcion.isEmpty ? null : descripcion,
+        'tipo': tipo,
+        'monto': monto,
+        'categoria_id': categoriaId,
+        'fecha': fechaCompleta.toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    _cargarTransacciones();
+  }
+
+  Future<void> _eliminarTransaccion(int id) async {
+    await db.delete(
+      'transacciones',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    _cargarTransacciones();
+  }
+
   @override
   Widget build(BuildContext context) {
     Map<String, List<Map<String, dynamic>>> transaccionesPorDia = {};
@@ -159,17 +201,34 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                                 'Descripción: ${transaccion['descripcion'] ?? "No disponible"}'),
                           ],
                         ),
-                        trailing: Text(
-                          'S/. ${transaccion['monto']}',
-                          style: TextStyle(
-                            color: transaccion['tipo'] == 'ingreso'
-                                ? Colors.green
-                                : Colors.red,
-                            fontSize: 15,
-                          ),
+                        trailing: Wrap(
+                          spacing: 8, // Espaciado entre botones
+                          children: [
+                            Text(
+                              'S/. ${transaccion['monto']}',
+                              style: TextStyle(
+                                color: transaccion['tipo'] == 'ingreso'
+                                    ? Colors.green
+                                    : Colors.red,
+                                fontSize: 15,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () {
+                                mostrarDialogoEditarTransaccion(
+                                    context, transaccion);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                _eliminarTransaccion(transaccion['id']);
+                              },
+                            ),
+                          ],
                         ),
                         onTap: () {
-                          // Mostrar detalles de la transacción
                           showDialog(
                             context: context,
                             builder: (_) => AlertDialog(
@@ -202,6 +261,91 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
           mostrarDialogoAgregarTransaccion(context);
         },
       ),
+    );
+  }
+
+  Future<void> mostrarDialogoEditarTransaccion(
+      BuildContext context, Map<String, dynamic> transaccion) async {
+    final _tituloController =
+        TextEditingController(text: transaccion['titulo']);
+    final _descripcionController =
+        TextEditingController(text: transaccion['descripcion']);
+    final _montoController =
+        TextEditingController(text: transaccion['monto'].toString());
+
+    final DateTime fechaInicial =
+        DateTime.parse(transaccion['fecha']); // Fecha inicial
+    final int categoriaId = transaccion['categoria_id'];
+
+    setState(() {
+      fechaSeleccionada = fechaInicial;
+      horaSeleccionada = TimeOfDay.fromDateTime(fechaInicial);
+      tipoSeleccionado = transaccion['tipo'];
+      categoriaSeleccionada = categoriaId;
+    });
+
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Editar Transacción"),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _tituloController,
+                      decoration: const InputDecoration(labelText: "Título"),
+                    ),
+                    TextField(
+                      controller: _descripcionController,
+                      decoration:
+                          const InputDecoration(labelText: "Descripción"),
+                    ),
+                    TextField(
+                      controller: _montoController,
+                      decoration: const InputDecoration(labelText: "Monto"),
+                      keyboardType: TextInputType.number,
+                    ),
+                    // (DropDowns de tipo, grupo y categoría, igual que el agregar)
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Cancelar"),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final titulo = _tituloController.text;
+                    final descripcion = _descripcionController.text;
+                    final monto = double.tryParse(_montoController.text) ?? 0;
+                    if (titulo.isNotEmpty &&
+                        tipoSeleccionado != null &&
+                        categoriaSeleccionada != null) {
+                      _editarTransaccion(
+                        transaccion['id'],
+                        titulo,
+                        descripcion,
+                        tipoSeleccionado!,
+                        monto,
+                        categoriaSeleccionada!,
+                        fechaSeleccionada ?? DateTime.now(),
+                      );
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text("Guardar"),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
