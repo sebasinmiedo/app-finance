@@ -80,6 +80,26 @@ class BasedatoHelper {
     );
   }
 
+  // Obtener transacciones de los últimos 7 días
+  Future<List<Map<String, dynamic>>> obtenerTransaccionesUltimaSemana() async {
+    final db = await database;
+
+    // Obtén la fecha de hace 7 días
+    DateTime fechaLimite = DateTime.now().subtract(Duration(days: 7));
+    String fechaLimiteStr = fechaLimite.toIso8601String();
+
+    // Query que obtiene las transacciones de los últimos 7 días
+    final List<Map<String, dynamic>> transacciones = await db.rawQuery('''
+      SELECT fecha, tipo, SUM(monto) AS total
+      FROM transacciones
+      WHERE fecha >= ?
+      GROUP BY strftime('%Y-%m-%d', fecha), tipo
+      ORDER BY fecha DESC
+    ''', [fechaLimiteStr]);
+
+    return transacciones;
+  }
+
   // Limpia todas las tablas de la base de datos
   Future<void> clearDatabase() async {
     final db = await database;
