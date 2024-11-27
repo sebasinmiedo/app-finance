@@ -1,4 +1,5 @@
 import 'package:app_finance/screens/categorias.dart';
+import 'package:app_finance/screens/graficos.dart';
 import 'package:app_finance/screens/presupuestos.dart';
 import 'package:app_finance/screens/transacciones.dart';
 import 'package:app_finance/database/db_helper.dart';
@@ -61,6 +62,10 @@ class _HomeScreenState extends State<HomeScreen>
           isScrollable: true,
           tabs: const [
             Tab(
+              text: 'GRÁFICOS',
+              icon: Icon(Icons.graphic_eq),
+            ),
+            Tab(
               text: 'TRANSACCIONES',
               icon: Icon(Icons.monetization_on),
             ),
@@ -82,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen>
       body: TabBarView(
         controller: _tabController,
         children: const [
+          GraficosScreen(),
           TransaccionesScreen(),
           CategoriasScreen(),
           Center(child: Text('Calendario')),
