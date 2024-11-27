@@ -173,13 +173,28 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        dia,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      padding: const EdgeInsets.all(10),
+                      child: Row(
+                        children: [
+                          Text(
+                            '${DateFormat('EEEE', 'es').format(DateTime.parse(dia)).toUpperCase()} ',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors
+                                  .blue, // Estilo para el día de la semana
+                            ),
+                          ),
+                          Text(
+                            DateFormat('dd/MM/yyyy')
+                                .format(DateTime.parse(dia)),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black, // Estilo para la fecha
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     ...transaccionesDelDia.map((transaccion) {
@@ -202,7 +217,7 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                           ],
                         ),
                         trailing: Wrap(
-                          spacing: 8, // Espaciado entre botones
+                          spacing: 1, // Espaciado entre botones
                           children: [
                             Text(
                               'S/. ${transaccion['monto']}',
@@ -213,17 +228,28 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                                 fontSize: 15,
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () {
-                                mostrarDialogoEditarTransaccion(
-                                    context, transaccion);
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert,
+                                  color: Colors.blue),
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  mostrarDialogoEditarTransaccion(
+                                      context, transaccion);
+                                } else if (value == 'delete') {
+                                  _eliminarTransaccion(transaccion['id']);
+                                }
                               },
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () {
-                                _eliminarTransaccion(transaccion['id']);
+                              itemBuilder: (BuildContext context) {
+                                return [
+                                  const PopupMenuItem<String>(
+                                    value: 'edit',
+                                    child: Text('Editar'),
+                                  ),
+                                  const PopupMenuItem<String>(
+                                    value: 'delete',
+                                    child: Text('Eliminar'),
+                                  ),
+                                ];
                               },
                             ),
                           ],
@@ -269,22 +295,16 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
     final _tituloController =
         TextEditingController(text: transaccion['titulo']);
     final _descripcionController =
-        TextEditingController(text: transaccion['descripcion']);
+        TextEditingController(text: transaccion['descripcion'] ?? "");
     final _montoController =
         TextEditingController(text: transaccion['monto'].toString());
 
-    final DateTime fechaInicial =
-        DateTime.parse(transaccion['fecha']); // Fecha inicial
-    final int categoriaId = transaccion['categoria_id'];
+    int? categoriaId = transaccion['categoria_id'];
+    String? tipoSeleccionado = transaccion['tipo'];
+    DateTime fecha = DateTime.parse(transaccion['fecha']);
+    TimeOfDay? horaSeleccionada = TimeOfDay.fromDateTime(fecha);
 
-    setState(() {
-      fechaSeleccionada = fechaInicial;
-      horaSeleccionada = TimeOfDay.fromDateTime(fechaInicial);
-      tipoSeleccionado = transaccion['tipo'];
-      categoriaSeleccionada = categoriaId;
-    });
-
-    return showDialog(
+    await showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
@@ -308,7 +328,113 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                       decoration: const InputDecoration(labelText: "Monto"),
                       keyboardType: TextInputType.number,
                     ),
-                    // (DropDowns de tipo, grupo y categoría, igual que el agregar)
+                    DropdownButtonFormField<String>(
+                      value: tipoSeleccionado,
+                      items: const [
+                        DropdownMenuItem(
+                            value: "ingreso", child: Text("Ingreso")),
+                        DropdownMenuItem(
+                            value: "egreso", child: Text("Egreso")),
+                      ],
+                      onChanged: (value) async {
+                        setDialogState(() {
+                          tipoSeleccionado = value;
+                        });
+                        if (value != null) {
+                          await cargarGrupos(value);
+                          setDialogState(() {});
+                        }
+                      },
+                      decoration: const InputDecoration(labelText: "Tipo"),
+                    ),
+                    if (tipoSeleccionado != null)
+                      DropdownButtonFormField<int>(
+                        value: grupoSeleccionado,
+                        items: grupos.map((grupo) {
+                          return DropdownMenuItem<int>(
+                            value: grupo["id"],
+                            child: Text(grupo["nombre"]),
+                          );
+                        }).toList(),
+                        onChanged: (value) async {
+                          setDialogState(() {
+                            grupoSeleccionado = value;
+                            categorias = [];
+                          });
+                          if (value != null) {
+                            await cargarCategorias(value);
+                          }
+                        },
+                        decoration: const InputDecoration(labelText: "Grupo"),
+                      ),
+                    DropdownButtonFormField<int>(
+                      value: categoriaId,
+                      items: categorias.map((categoria) {
+                        return DropdownMenuItem<int>(
+                          value: categoria["id"],
+                          child: Text(categoria["nombre"]),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          categoriaId = value;
+                        });
+                      },
+                      decoration: const InputDecoration(labelText: "Categoría"),
+                    ),
+                    ListTile(
+                      title: Text(
+                          'Fecha: ${DateFormat('yyyy-MM-dd').format(fecha)}',
+                          style: const TextStyle(fontSize: 13)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.calendar_today),
+                        onPressed: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: fecha,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              fecha = DateTime(
+                                picked.year,
+                                picked.month,
+                                picked.day,
+                                fecha.hour,
+                                fecha.minute,
+                              );
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    ListTile(
+                      title: Text(
+                          'Hora: ${horaSeleccionada?.format(context) ?? ''}',
+                          style: const TextStyle(fontSize: 13)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.access_time),
+                        onPressed: () async {
+                          final TimeOfDay? picked = await showTimePicker(
+                            context: context,
+                            initialTime: horaSeleccionada ?? TimeOfDay.now(),
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              horaSeleccionada = picked;
+                              fecha = DateTime(
+                                fecha.year,
+                                fecha.month,
+                                fecha.day,
+                                picked.hour,
+                                picked.minute,
+                              );
+                            });
+                          }
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -320,22 +446,27 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                   child: const Text("Cancelar"),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final titulo = _tituloController.text;
                     final descripcion = _descripcionController.text;
                     final monto = double.tryParse(_montoController.text) ?? 0;
-                    if (titulo.isNotEmpty &&
-                        tipoSeleccionado != null &&
-                        categoriaSeleccionada != null) {
-                      _editarTransaccion(
-                        transaccion['id'],
-                        titulo,
-                        descripcion,
-                        tipoSeleccionado!,
-                        monto,
-                        categoriaSeleccionada!,
-                        fechaSeleccionada ?? DateTime.now(),
+
+                    if (titulo.isNotEmpty && categoriaId != null) {
+                      await db.update(
+                        'transacciones',
+                        {
+                          'titulo': titulo,
+                          'descripcion':
+                              descripcion.isEmpty ? null : descripcion,
+                          'tipo': tipoSeleccionado,
+                          'monto': monto,
+                          'categoria_id': categoriaId,
+                          'fecha': fecha.toIso8601String(),
+                        },
+                        where: 'id = ?',
+                        whereArgs: [transaccion['id']],
                       );
+                      _cargarTransacciones();
                       Navigator.pop(context);
                     }
                   },
@@ -498,12 +629,43 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    final titulo = _tituloController.text;
-                    final descripcion = _descripcionController.text;
+                    final titulo = _tituloController.text.trim();
+                    final descripcion = _descripcionController.text.trim();
                     final monto = double.tryParse(_montoController.text) ?? 0;
-                    if (titulo.isNotEmpty &&
-                        tipoSeleccionado != null &&
-                        categoriaSeleccionada != null) {
+
+                    // Validar campos obligatorios
+                    if (titulo.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('El campo Título es obligatorio'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (tipoSeleccionado == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Debe seleccionar un tipo'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (categoriaSeleccionada == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Debe seleccionar una categoría'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Agregar la transacción si todo está correcto
+                    try {
                       _agregarTransaccion(
                         titulo,
                         descripcion,
@@ -512,7 +674,24 @@ class _TransaccionesScreenState extends State<TransaccionesScreen> {
                         categoriaSeleccionada!,
                         fechaSeleccionada ?? DateTime.now(),
                       );
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Transacción guardada exitosamente'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+
                       Navigator.pop(context);
+                    } catch (e) {
+                      // Mostrar mensaje de error
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              'Ocurrió un error al guardar la transacción: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                   },
                   child: const Text("Guardar"),
