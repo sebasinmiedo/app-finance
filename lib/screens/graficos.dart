@@ -69,17 +69,31 @@ class _GraficosScreenState extends State<GraficosScreen> {
           barRods: [
             // Barra de egresos
             BarChartRodData(
-              toY: egresos,
-              color: const Color.fromRGBO(255, 0, 0, 1), // Rojo para egresos
-              width: 15, // Ajusté el ancho para hacer las barras más compactas
-              borderRadius: BorderRadius.zero, // Sin bordes redondeados
+              toY: egresos, // Rojo para egresos
+              width: 15,
+              borderRadius: BorderRadius.zero,
+              gradient: const LinearGradient(
+                colors: [
+                  Color.fromARGB(255, 255, 131, 123),
+                  Color.fromARGB(255, 255, 0, 0),
+                ], // Gradiente
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+              ),
             ),
-            // Barra de ingresos apilada sobre los egresos
+            //
             BarChartRodData(
               toY: ingresos,
-              color: const Color.fromRGBO(0, 255, 0, 1), // Verde para ingresos
+              gradient: const LinearGradient(
+                colors: [
+                  Color.fromARGB(255, 162, 208, 110),
+                  Colors.green,
+                ],
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+              ),
               width: 15, // Ancho consistente
-              borderRadius: BorderRadius.zero, // Sin bordes redondeados
+              borderRadius: BorderRadius.zero,
             ),
           ],
         ),
@@ -95,46 +109,128 @@ class _GraficosScreenState extends State<GraficosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: barGroups.isEmpty
-            ? const Center(child: CircularProgressIndicator()) // Cargando
-            : BarChart(
-                BarChartData(
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 410,
-                        getTitlesWidget: (double value, TitleMeta meta) {
-                          DateTime date = DateTime.now()
-                              .subtract(Duration(days: 6 - value.toInt()));
-                          return SideTitleWidget(
-                            axisSide: meta.axisSide,
-                            child: Text(
-                              DateFormat('dd/MM').format(date),
-                              style: const TextStyle(
-                                  fontSize: 10, fontWeight: FontWeight.w500),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Gráfico de barras
+            const Text(
+              'Ingresos y Egresos de los ultimos 7 dias',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 200, // Altura específica para el gráfico
+              child: barGroups.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : BarChart(
+                      BarChartData(
+                        titlesData: FlTitlesData(
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          leftTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 30,
+                              getTitlesWidget: (double value, TitleMeta meta) {
+                                DateTime date = DateTime.now().subtract(
+                                    Duration(days: 6 - value.toInt()));
+                                return SideTitleWidget(
+                                  axisSide: meta.axisSide,
+                                  child: Transform.rotate(
+                                    angle: -40 * (3.141592653589793 / 180),
+                                    child: Text(
+                                      DateFormat('EEEE', 'es')
+                                          .format(date)
+                                          .toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
+                          ),
+                        ),
+                        borderData: FlBorderData(
+                            show: true,
+                            border: Border.all(color: Colors.grey, width: 2)),
+                        gridData: const FlGridData(
+                          show: false,
+                        ),
+                        barGroups: barGroups,
+                        alignment: BarChartAlignment.spaceBetween,
                       ),
                     ),
-                  ),
-                  borderData: FlBorderData(
-                      show: true,
-                      border: Border.all(color: Colors.grey, width: 2)),
-                  gridData: const FlGridData(
-                      show: true,
-                      drawHorizontalLine: true,
-                      drawVerticalLine: false),
-                  barGroups: barGroups,
-                  alignment: BarChartAlignment.spaceBetween,
+            ),
+            const SizedBox(height: 20), // Separador
+
+            // Gráfico circular
+            const Text(
+              'Gráfico Circular',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 150,
+              child: PieChart(
+                PieChartData(
+                  sections: [
+                    PieChartSectionData(
+                      color: Colors.blue,
+                      value: 40,
+                      title: '40%',
+                      titleStyle:
+                          const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    PieChartSectionData(
+                      color: Colors.green,
+                      value: 30,
+                      title: '30%',
+                      titleStyle:
+                          const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    PieChartSectionData(
+                      color: Colors.red,
+                      value: 20,
+                      title: '20%',
+                      titleStyle:
+                          const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    PieChartSectionData(
+                      color: Colors.yellow,
+                      value: 10,
+                      title: '10%',
+                      titleStyle:
+                          const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ],
                 ),
               ),
+            ),
+            const SizedBox(height: 20), // Separador
+
+            // Otro gráfico (puedes duplicar el widget de BarChart o PieChart aquí)
+            const Text(
+              'Otro Gráfico',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              height: 300,
+              color: Colors.grey.shade300,
+              alignment: Alignment.center,
+              child: const Text('Otro tipo de gráfico aquí'),
+            ),
+          ],
+        ),
       ),
     );
   }

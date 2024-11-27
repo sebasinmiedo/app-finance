@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -78,6 +79,26 @@ class BasedatoHelper {
         ''');
       },
     );
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerTransaccionesPorRango(
+      DateTime startDate, DateTime endDate) async {
+    // Obtén una instancia de la base de datos
+    final db = await database;
+
+    // Convierte las fechas al formato ISO 8601 para la consulta SQL
+    String start = DateFormat('yyyy-MM-dd').format(startDate);
+    String end = DateFormat('yyyy-MM-dd').format(endDate);
+
+    // Ejecuta la consulta para obtener las transacciones dentro del rango
+    List<Map<String, dynamic>> resultado = await db.query(
+      'Transaccion', // Nombre de la tabla
+      where: 'fecha BETWEEN ? AND ?', // Condición de rango
+      whereArgs: [start, end], // Argumentos de las fechas
+      orderBy: 'fecha ASC', // Orden por fecha ascendente
+    );
+
+    return resultado;
   }
 
   // Obtener transacciones de los últimos 7 días
