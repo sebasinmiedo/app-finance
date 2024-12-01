@@ -20,7 +20,72 @@ class _GraficosScreenState extends State<GraficosScreen> {
   void initState() {
     super.initState();
     _cargarDatos();
-    _cargarTransaccionesPorMes(currentMonth);
+    _cargarGastosPorCategoria();
+  }
+
+  Future<void> _cargarGastosPorCategoria() async {
+    // Obtener el inicio y fin del mes actual
+    DateTime inicioMes = DateTime(currentMonth.year, currentMonth.month, 1);
+    DateTime finMes = DateTime(currentMonth.year, currentMonth.month + 1, 0);
+
+    // Obtener los datos desde la base de datos
+    List<Map<String, dynamic>> resultados =
+        await dbHelper.obtenerGastosPorCategoria(inicioMes, finMes);
+
+    if (resultados.isEmpty) {
+      setState(() {
+        pieSections = []; // No hay datos disponibles
+      });
+      return;
+    }
+
+    double totalGeneral =
+        resultados.fold(0.0, (sum, item) => sum + item['total']);
+
+    List<Color> colores = [
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.yellow,
+      Colors.teal,
+      Colors.pink,
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.yellow,
+      Colors.teal,
+      Colors.pink,
+    ];
+    // Crear las secciones del gráfico circular
+    List<PieChartSectionData> sections = [];
+    int colorIndex = 0;
+    for (var resultado in resultados) {
+      String categoria = resultado['categoria'];
+      double total = resultado['total'];
+
+      double porcentaje = (total / totalGeneral) * 100;
+
+      sections.add(PieChartSectionData(
+        color: colores[colorIndex % colores.length],
+        value: total,
+        title:
+            '${categoria}\n${total.toStringAsFixed(2)}\n${porcentaje.toStringAsFixed(1)}%',
+        titleStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ));
+      colorIndex++;
+    }
+
+    setState(() {
+      pieSections = sections;
+    });
   }
 
   Future<void> _cargarTransaccionesPorMes(DateTime mes) async {
@@ -227,78 +292,34 @@ class _GraficosScreenState extends State<GraficosScreen> {
                     ),
             ),
             const SizedBox(height: 20), // Separador
-
-            // Gráfico circular
-            const Text(
-              'Gráfico Circular',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'Mes: ${DateFormat('MMMM yyyy', 'es').format(currentMonth)}',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 10),
             const SizedBox(height: 10),
 
-            GestureDetector(
-                onTap: _seleccionarMes,
-                child: SizedBox(
-                  height: 150,
-                  child: PieChart(
-                    PieChartData(
-                      sections: pieSections.isEmpty
-                          ? [
-                              PieChartSectionData(
-                                color: Colors.grey,
-                                value: 1,
-                                title: 'No hay datos',
-                                titleStyle: const TextStyle(
-                                    color: Colors.white, fontSize: 16),
-                              ),
-                            ]
-                          : pieSections,
-                      centerSpaceRadius: 50,
-                    ),
-                  ),
-                )),
-            SizedBox(
-              height: 150,
-              child: PieChart(
-                PieChartData(
-                  sections: [
-                    PieChartSectionData(
-                      color: Colors.blue,
-                      value: 40,
-                      title: '40%',
-                      titleStyle:
-                          const TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    PieChartSectionData(
-                      color: Colors.green,
-                      value: 30,
-                      title: '30%',
-                      titleStyle:
-                          const TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    PieChartSectionData(
-                      color: Colors.red,
-                      value: 20,
-                      title: '20%',
-                      titleStyle:
-                          const TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    PieChartSectionData(
-                      color: Colors.yellow,
-                      value: 10,
-                      title: '10%',
-                      titleStyle:
-                          const TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ],
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Gastos del Mes por Categoría',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-              ),
+                Text(
+                  'Mes: ${DateFormat('MMMM yyyy', 'es').format(currentMonth)}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 250,
+                  child: pieSections.isEmpty
+                      ? const Center(child: Text('No hay datos disponibles'))
+                      : PieChart(
+                          PieChartData(
+                            sections: pieSections,
+                            centerSpaceRadius: 50,
+                            sectionsSpace: 2, // Espacio entre secciones
+                          ),
+                        ),
+                ),
+              ],
             ),
-            const SizedBox(height: 20), // Separador
 
             // Otro gráfico (puedes duplicar el widget de BarChart o PieChart aquí)
             const Text(
