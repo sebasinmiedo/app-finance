@@ -13,11 +13,67 @@ class GraficosScreen extends StatefulWidget {
 class _GraficosScreenState extends State<GraficosScreen> {
   final BasedatoHelper dbHelper = BasedatoHelper();
   List<BarChartGroupData> barGroups = [];
+  List<PieChartSectionData> pieSections = [];
+  DateTime currentMonth = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _cargarDatos();
+    _cargarTransaccionesPorMes(currentMonth);
+  }
+
+  Future<void> _cargarTransaccionesPorMes(DateTime mes) async {
+    DateTime inicioMes = DateTime(mes.year, mes.month, 1);
+    DateTime finMes = DateTime(mes.year, mes.month + 1, 0);
+
+    List<Map<String, dynamic>> transacciones =
+        await dbHelper.obtenerTransaccionesPorRango(inicioMes, finMes);
+
+    Map<String, double> totalesPorCategoria = {};
+    for (var transaccion in transacciones) {
+      String categoria = transaccion['categoria'];
+      double monto = transaccion['monto'];
+
+      totalesPorCategoria[categoria] =
+          (totalesPorCategoria[categoria] ?? 0) + monto;
+    }
+
+    List<PieChartSectionData> sections = [];
+    totalesPorCategoria.forEach((categoria, total) {
+      sections.add(PieChartSectionData(
+        color: _colorAleatorio(),
+        value: total,
+        title: total.toStringAsFixed(2),
+        titleStyle: const TextStyle(color: Colors.white, fontSize: 16),
+      ));
+    });
+
+    setState(() {
+      pieSections = sections;
+    });
+  }
+
+  Color _colorAleatorio() {
+    return Color((0xFF000000 + (0xFFFFFF * (pieSections.length / 10))).toInt())
+        .withOpacity(1.0);
+  }
+
+  Future<void> _seleccionarMes() async {
+    DateTime? mesSeleccionado = await showDatePicker(
+      context: context,
+      initialDate: currentMonth,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      locale: const Locale('es'),
+    );
+
+    if (mesSeleccionado != null) {
+      setState(() {
+        currentMonth = DateTime(mesSeleccionado.year, mesSeleccionado.month);
+      });
+      _cargarTransaccionesPorMes(currentMonth);
+    }
   }
 
   Future<void> _cargarDatos() async {
@@ -177,7 +233,34 @@ class _GraficosScreenState extends State<GraficosScreen> {
               'Gráfico Circular',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+            Text(
+              'Mes: ${DateFormat('MMMM yyyy', 'es').format(currentMonth)}',
+              style: const TextStyle(fontSize: 16),
+            ),
             const SizedBox(height: 10),
+            const SizedBox(height: 10),
+
+            GestureDetector(
+                onTap: _seleccionarMes,
+                child: SizedBox(
+                  height: 150,
+                  child: PieChart(
+                    PieChartData(
+                      sections: pieSections.isEmpty
+                          ? [
+                              PieChartSectionData(
+                                color: Colors.grey,
+                                value: 1,
+                                title: 'No hay datos',
+                                titleStyle: const TextStyle(
+                                    color: Colors.white, fontSize: 16),
+                              ),
+                            ]
+                          : pieSections,
+                      centerSpaceRadius: 50,
+                    ),
+                  ),
+                )),
             SizedBox(
               height: 150,
               child: PieChart(
