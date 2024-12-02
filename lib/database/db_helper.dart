@@ -116,7 +116,7 @@ class BasedatoHelper {
     final db = await database;
 
     // Obtén la fecha de hace 7 días
-    DateTime fechaLimite = DateTime.now().subtract(Duration(days: 7));
+    DateTime fechaLimite = DateTime.now().subtract(const Duration(days: 7));
     String fechaLimiteStr = fechaLimite.toIso8601String();
 
     // Query que obtiene las transacciones de los últimos 7 días

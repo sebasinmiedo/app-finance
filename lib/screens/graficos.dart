@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:app_finance/database/db_helper.dart';
+import 'package:month_year_picker/month_year_picker.dart';
 
 class GraficosScreen extends StatefulWidget {
   const GraficosScreen({super.key});
@@ -16,11 +17,97 @@ class _GraficosScreenState extends State<GraficosScreen> {
   List<PieChartSectionData> pieSections = [];
   DateTime currentMonth = DateTime.now();
 
+  List<int> years = List.generate(
+      101, (index) => 2000 + index); // Lista de años de 2000 a 2100
+  List<String> months = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre'
+  ];
+
+  String? selectedMonth;
+  int? selectedYear;
+
+  List<String> meses = List.generate(12, (index) {
+    return DateFormat('MMMM', 'es').format(DateTime(0, index + 1));
+  }); // Genera la lista de meses en español.
+
   @override
   void initState() {
     super.initState();
     _cargarDatos();
     _cargarGastosPorCategoria();
+    selectedMonth = months[currentMonth.month - 1]; // Establecer el mes actual
+    selectedYear = currentMonth.year; // Establecer el año actual
+  }
+
+  void _updateDate() {
+    setState(() {
+      currentMonth =
+          DateTime(selectedYear!, months.indexOf(selectedMonth!) + 1, 1);
+    });
+    _cargarGastosPorCategoria();
+  }
+
+  void _showMonthYearPicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: <Widget>[
+              Text('Selecciona un Mes y Año',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              DropdownButton<String>(
+                value: selectedMonth,
+                items: months.map((month) {
+                  return DropdownMenuItem<String>(
+                    value: month,
+                    child: Text(month),
+                  );
+                }).toList(),
+                onChanged: (newMonth) {
+                  setState(() {
+                    selectedMonth = newMonth;
+                  });
+                },
+              ),
+              DropdownButton<int>(
+                value: selectedYear,
+                items: years.map((year) {
+                  return DropdownMenuItem<int>(
+                    value: year,
+                    child: Text(year.toString()),
+                  );
+                }).toList(),
+                onChanged: (newYear) {
+                  setState(() {
+                    selectedYear = newYear;
+                  });
+                },
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Cerrar el BottomSheet
+                  _updateDate(); // Actualizar el mes y año
+                },
+                child: Text("Aceptar"),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _cargarGastosPorCategoria() async {
@@ -60,6 +147,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
       Colors.teal,
       Colors.pink,
     ];
+
     // Crear las secciones del gráfico circular
     List<PieChartSectionData> sections = [];
     int colorIndex = 0;
@@ -69,17 +157,27 @@ class _GraficosScreenState extends State<GraficosScreen> {
 
       double porcentaje = (total / totalGeneral) * 100;
 
-      sections.add(PieChartSectionData(
-        color: colores[colorIndex % colores.length],
-        value: total,
-        title:
-            '${categoria}\n${total.toStringAsFixed(2)}\n${porcentaje.toStringAsFixed(1)}%',
-        titleStyle: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ));
+      sections.add(
+        PieChartSectionData(
+            color: colores[colorIndex % colores.length],
+            value: total,
+            title: '$categoria\nS/. ${total.toStringAsFixed(2)}',
+            titleStyle: const TextStyle(
+              color: Colors.black,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+            radius: 40,
+            titlePositionPercentageOffset: 1.7,
+            badgeWidget: Text(
+              '${porcentaje.toStringAsFixed(1)}%',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            )),
+      );
       colorIndex++;
     }
 
@@ -119,25 +217,37 @@ class _GraficosScreenState extends State<GraficosScreen> {
     });
   }
 
+  void _cambiarMes(String mesSeleccionado) {
+    int mesIndex = meses.indexOf(mesSeleccionado) + 1;
+    setState(() {
+      currentMonth = DateTime(currentMonth.year, mesIndex, 1);
+    });
+    _cargarGastosPorCategoria(); // Actualiza los datos con el nuevo mes.
+  }
+
   Color _colorAleatorio() {
     return Color((0xFF000000 + (0xFFFFFF * (pieSections.length / 10))).toInt())
         .withOpacity(1.0);
   }
 
   Future<void> _seleccionarMes() async {
-    DateTime? mesSeleccionado = await showDatePicker(
+    DateTime? mesSeleccionado = await showMonthYearPicker(
       context: context,
-      initialDate: currentMonth,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      locale: const Locale('es'),
+      initialDate: currentMonth, // Fecha inicial (mes actual)
+      firstDate: DateTime(2000, 1), // Primera fecha seleccionable
+      lastDate: DateTime(2100, 12), // Última fecha seleccionable
+      locale: const Locale('es'), // Idioma en español
     );
 
     if (mesSeleccionado != null) {
+      // Actualiza el mes seleccionado
       setState(() {
         currentMonth = DateTime(mesSeleccionado.year, mesSeleccionado.month);
       });
-      _cargarTransaccionesPorMes(currentMonth);
+
+      // Recarga los datos del gráfico
+      await _cargarTransaccionesPorMes(currentMonth);
+      await _cargarGastosPorCategoria();
     }
   }
 
@@ -291,9 +401,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
                       ),
                     ),
             ),
-            const SizedBox(height: 20), // Separador
-            const SizedBox(height: 10),
-
+            const SizedBox(height: 15), // Separador
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -301,9 +409,20 @@ class _GraficosScreenState extends State<GraficosScreen> {
                   'Gastos del Mes por Categoría',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                Text(
-                  'Mes: ${DateFormat('MMMM yyyy', 'es').format(currentMonth)}',
-                  style: const TextStyle(fontSize: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Selecciona Mes:',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    ElevatedButton(
+                      onPressed: _showMonthYearPicker,
+                      child: Text(
+                        '${currentMonth.month}/${currentMonth.year}',
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
@@ -314,13 +433,12 @@ class _GraficosScreenState extends State<GraficosScreen> {
                           PieChartData(
                             sections: pieSections,
                             centerSpaceRadius: 50,
-                            sectionsSpace: 2, // Espacio entre secciones
+                            sectionsSpace: 2,
                           ),
                         ),
                 ),
               ],
             ),
-
             // Otro gráfico (puedes duplicar el widget de BarChart o PieChart aquí)
             const Text(
               'Otro Gráfico',
