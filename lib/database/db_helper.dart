@@ -111,6 +111,27 @@ class BasedatoHelper {
   ''', [inicio.toIso8601String(), fin.toIso8601String()]);
   }
 
+  Future<List<Map<String, dynamic>>> obtenerIngresosPorCategoria(
+      DateTime inicio, DateTime fin) async {
+    final db = await database; // Obtén la base de datos
+
+    // Ejecutar la consulta SQL
+    return await db.rawQuery('''
+    SELECT 
+        c.nombre AS categoria, 
+        SUM(t.monto) AS total
+    FROM 
+        transacciones t
+    JOIN 
+        categorias c ON t.categoria_id = c.id
+    WHERE 
+        t.tipo = 'ingreso'
+        AND t.fecha BETWEEN ? AND ?
+    GROUP BY 
+        c.nombre
+  ''', [inicio.toIso8601String(), fin.toIso8601String()]);
+  }
+
   // Obtener transacciones de los últimos 7 días
   Future<List<Map<String, dynamic>>> obtenerTransaccionesUltimaSemana() async {
     final db = await database;

@@ -15,6 +15,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
   final BasedatoHelper dbHelper = BasedatoHelper();
   List<BarChartGroupData> barGroups = [];
   List<PieChartSectionData> pieSections = [];
+  List<PieChartSectionData> pieSectionsI = [];
   DateTime currentMonth = DateTime.now();
 
   List<int> years = List.generate(
@@ -46,6 +47,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
     super.initState();
     _cargarDatos();
     _cargarGastosPorCategoria();
+    _cargarIngresosPorCategoria();
     selectedMonth = months[currentMonth.month - 1]; // Establecer el mes actual
     selectedYear = currentMonth.year; // Establecer el año actual
   }
@@ -56,6 +58,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
           DateTime(selectedYear!, months.indexOf(selectedMonth!) + 1, 1);
     });
     _cargarGastosPorCategoria();
+    _cargarIngresosPorCategoria();
   }
 
   void _showMonthYearPicker() {
@@ -66,7 +69,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: <Widget>[
-              Text('Selecciona un Mes y Año',
+              const Text('Selecciona un Mes y Año',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               DropdownButton<String>(
                 value: selectedMonth,
@@ -101,7 +104,7 @@ class _GraficosScreenState extends State<GraficosScreen> {
                   Navigator.pop(context); // Cerrar el BottomSheet
                   _updateDate(); // Actualizar el mes y año
                 },
-                child: Text("Aceptar"),
+                child: const Text("Aceptar"),
               ),
             ],
           ),
@@ -164,16 +167,16 @@ class _GraficosScreenState extends State<GraficosScreen> {
             title: '$categoria\nS/. ${total.toStringAsFixed(2)}',
             titleStyle: const TextStyle(
               color: Colors.black,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
             ),
-            radius: 40,
-            titlePositionPercentageOffset: 1.7,
+            radius: 50,
+            titlePositionPercentageOffset: 1.8,
             badgeWidget: Text(
               '${porcentaje.toStringAsFixed(1)}%',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
             )),
@@ -186,48 +189,80 @@ class _GraficosScreenState extends State<GraficosScreen> {
     });
   }
 
-  Future<void> _cargarTransaccionesPorMes(DateTime mes) async {
-    DateTime inicioMes = DateTime(mes.year, mes.month, 1);
-    DateTime finMes = DateTime(mes.year, mes.month + 1, 0);
+  Future<void> _cargarIngresosPorCategoria() async {
+    // Obtener el inicio y fin del mes actual
+    DateTime inicioMes = DateTime(currentMonth.year, currentMonth.month, 1);
+    DateTime finMes = DateTime(currentMonth.year, currentMonth.month + 1, 0);
 
-    List<Map<String, dynamic>> transacciones =
-        await dbHelper.obtenerTransaccionesPorRango(inicioMes, finMes);
+    // Obtener los datos desde la base de datos
+    List<Map<String, dynamic>> resultados =
+        await dbHelper.obtenerIngresosPorCategoria(inicioMes, finMes);
 
-    Map<String, double> totalesPorCategoria = {};
-    for (var transaccion in transacciones) {
-      String categoria = transaccion['categoria'];
-      double monto = transaccion['monto'];
-
-      totalesPorCategoria[categoria] =
-          (totalesPorCategoria[categoria] ?? 0) + monto;
+    if (resultados.isEmpty) {
+      setState(() {
+        pieSectionsI = []; // No hay datos disponibles
+      });
+      return;
     }
 
+    double totalGeneral =
+        resultados.fold(0.0, (sum, item) => sum + item['total']);
+
+    List<Color> colores = [
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.yellow,
+      Colors.teal,
+      Colors.pink,
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.yellow,
+      Colors.teal,
+      Colors.pink,
+    ];
+
+    // Crear las secciones del gráfico circular
     List<PieChartSectionData> sections = [];
-    totalesPorCategoria.forEach((categoria, total) {
-      sections.add(PieChartSectionData(
-        color: _colorAleatorio(),
-        value: total,
-        title: total.toStringAsFixed(2),
-        titleStyle: const TextStyle(color: Colors.white, fontSize: 16),
-      ));
-    });
+    int colorIndex = 0;
+    for (var resultado in resultados) {
+      String categoria = resultado['categoria'];
+      double total = resultado['total'];
+
+      double porcentaje = (total / totalGeneral) * 100;
+
+      sections.add(
+        PieChartSectionData(
+            color: colores[colorIndex % colores.length],
+            value: total,
+            title: '$categoria\nS/. ${total.toStringAsFixed(2)}',
+            titleStyle: const TextStyle(
+              color: Colors.black,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+            radius: 50,
+            titlePositionPercentageOffset: 1.8,
+            badgeWidget: Text(
+              '${porcentaje.toStringAsFixed(1)}%',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            )),
+      );
+      colorIndex++;
+    }
 
     setState(() {
-      pieSections = sections;
+      pieSectionsI = sections;
     });
-  }
-
-  void _cambiarMes(String mesSeleccionado) {
-    int mesIndex = meses.indexOf(mesSeleccionado) + 1;
-    setState(() {
-      currentMonth = DateTime(currentMonth.year, mesIndex, 1);
-    });
-    _cargarGastosPorCategoria(); // Actualiza los datos con el nuevo mes.
-  }
-
-  Color _colorAleatorio() {
-    return Color((0xFF000000 + (0xFFFFFF * (pieSections.length / 10))).toInt())
-        .withOpacity(1.0);
   }
 
   Future<void> _seleccionarMes() async {
@@ -245,9 +280,8 @@ class _GraficosScreenState extends State<GraficosScreen> {
         currentMonth = DateTime(mesSeleccionado.year, mesSeleccionado.month);
       });
 
-      // Recarga los datos del gráfico
-      await _cargarTransaccionesPorMes(currentMonth);
       await _cargarGastosPorCategoria();
+      await _cargarIngresosPorCategoria();
     }
   }
 
@@ -255,9 +289,6 @@ class _GraficosScreenState extends State<GraficosScreen> {
     // Obtén las transacciones de la última semana
     List<Map<String, dynamic>> transacciones =
         await dbHelper.obtenerTransaccionesUltimaSemana();
-
-    print(
-        "Transacciones obtenidas: $transacciones"); // Verifica los datos obtenidos
 
     // Creamos un mapa para almacenar la sumatoria de ingresos y egresos por día
     Map<String, double> ingresosPorDia = {};
@@ -401,19 +432,19 @@ class _GraficosScreenState extends State<GraficosScreen> {
                       ),
                     ),
             ),
-            const SizedBox(height: 15), // Separador
+            const SizedBox(height: 18), // Separador
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Gastos del Mes por Categoría',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  'Gastos e ingresos del Mes por Categoría',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Selecciona Mes:',
+                      'Gastos del Mes:',
                       style: TextStyle(fontSize: 16),
                     ),
                     ElevatedButton(
@@ -432,6 +463,28 @@ class _GraficosScreenState extends State<GraficosScreen> {
                       : PieChart(
                           PieChartData(
                             sections: pieSections,
+                            centerSpaceRadius: 50,
+                            sectionsSpace: 2,
+                          ),
+                        ),
+                ),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Ingresos del Mes:',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 250,
+                  child: pieSectionsI.isEmpty
+                      ? const Center(child: Text('No hay datos disponibles'))
+                      : PieChart(
+                          PieChartData(
+                            sections: pieSectionsI,
                             centerSpaceRadius: 50,
                             sectionsSpace: 2,
                           ),
