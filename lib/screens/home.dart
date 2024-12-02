@@ -1,3 +1,4 @@
+import 'package:app_finance/screens/calendario.dart';
 import 'package:app_finance/screens/categorias.dart';
 import 'package:app_finance/screens/graficos.dart';
 import 'package:app_finance/screens/presupuestos.dart';
@@ -90,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen>
           GraficosScreen(),
           TransaccionesScreen(),
           CategoriasScreen(),
-          Center(child: Text('Calendario')),
+          CalendarioScreen(),
           PresupuestosScreen(),
         ],
       ),

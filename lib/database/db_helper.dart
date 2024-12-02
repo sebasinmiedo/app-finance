@@ -152,6 +152,19 @@ class BasedatoHelper {
     return transacciones;
   }
 
+  Future<List<Map<String, dynamic>>> obtenerTotalesPorGrupo(
+      DateTime inicio, DateTime fin) async {
+    final db = await database;
+    return db.rawQuery('''
+    SELECT g.nombre AS grupo, SUM(t.monto) AS total
+    FROM transaccion t
+    JOIN categoria c ON t.categoriaId = c.id
+    JOIN grupo g ON c.grupoId = g.id
+    WHERE t.tipo = 'gasto' AND t.fecha BETWEEN ? AND ?
+    GROUP BY g.nombre
+  ''', [inicio.toIso8601String(), fin.toIso8601String()]);
+  }
+
   // Limpia todas las tablas de la base de datos
   Future<void> clearDatabase() async {
     final db = await database;
