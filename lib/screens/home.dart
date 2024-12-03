@@ -16,6 +16,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final BasedatoHelper _dbHelper = BasedatoHelper();
 
   @override
   void initState() {
@@ -115,19 +116,42 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Inicio'),
+              leading: const Icon(Icons.delete),
+              title: const Text('Eliminar Base de Datos'),
               onTap: () async {
-                final dbHelper = BasedatoHelper();
-                await dbHelper.clearDatabase();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Configuración'),
-              onTap: () async {
-                final dbHelper = BasedatoHelper();
-                await dbHelper.printAllRecords();
+                // Mostrar el cuadro de confirmación
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('Confirmación'),
+                      content: const Text(
+                          '¿Seguro que deseas eliminar la información?'),
+                      actions: <Widget>[
+                        TextButton(
+                          child: const Text('Cancelar'),
+                          onPressed: () {
+                            Navigator.of(context)
+                                .pop(); // Cierra el cuadro de diálogo
+                          },
+                        ),
+                        TextButton(
+                          child: const Text('Eliminar'),
+                          onPressed: () async {
+                            // Eliminar la base de datos si el usuario confirma
+                            await _dbHelper.clearDatabase();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Base de datos eliminada')),
+                            );
+                            Navigator.of(context)
+                                .pop(); // Cierra el cuadro de diálogo
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
               },
             ),
           ],
@@ -141,8 +165,9 @@ class _HomeScreenState extends State<HomeScreen>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Ayuda'),
-          content: const Text('Aquí va la información de ayuda.'),
+          title: const Text('Créditos'),
+          content: const Text(
+              'Puede trabajar de forma colaborativa en este proyecto en el siguiente enlace https://github.com/sebasinmiedo/app-finance.git'),
           actions: <Widget>[
             TextButton(
               child: const Text('Cerrar'),

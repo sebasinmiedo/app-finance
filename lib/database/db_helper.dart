@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -8,6 +11,88 @@ class BasedatoHelper {
   BasedatoHelper._internal();
 
   factory BasedatoHelper() => _instance;
+
+  deleteDB() async {
+    try {
+      _database = null;
+      deleteDatabase(
+          "/data/user/0/com.example.app_finance/databases/app_finance.db");
+    } catch (e) {
+      print("============================error ${e.toString()}");
+    }
+  }
+
+  getDbPath() async {
+    String databasePath = await getDatabasesPath();
+    print('========================databasePath: $databasePath');
+    Directory? externalStoragePath = await getExternalStorageDirectory();
+    print('========================externalStoragePath: $externalStoragePath');
+  }
+
+  backupDB() async {
+    var status = await Permission.manageExternalStorage.status;
+    if (!status.isGranted) {
+      await Permission.manageExternalStorage.request();
+    }
+    var status1 = await Permission.storage.status;
+    if (!status1.isGranted) {
+      await Permission.storage.request();
+    }
+    try {
+      File ourDBFile =
+          File('/data/user/0/com.example.app_finance/databases/app_finance.db');
+      Directory? folderPathForDBFile =
+          Directory("/storage/emulated/0/financeDatabase");
+      await folderPathForDBFile.create();
+      await ourDBFile
+          .copy('/storage/emulated/0/financeDatabase/app_finance.db');
+    } catch (e) {
+      print("============================error ${e.toString()}");
+    }
+  }
+
+  restoreD() async {
+    var status = await Permission.manageExternalStorage.status;
+    if (!status.isGranted) {
+      await Permission.manageExternalStorage.request();
+    }
+    var status1 = await Permission.storage.status;
+    if (!status1.isGranted) {
+      await Permission.storage.request();
+    }
+    try {
+      File savedDBFile =
+          File('/storage/emulated/0/financeDatabase/app_finance.db');
+      await savedDBFile.copy(
+          '/data/user/0/com.example.app_finance/databases/app_finance.db');
+    } catch (e) {
+      print("============================error ${e.toString()}");
+    }
+  }
+
+  Future<String> exportDatabase() async {
+    // Obtén la ubicación del directorio de la base de datos
+    final directory = await getApplicationDocumentsDirectory();
+    final databasePath = directory.path +
+        '/app_finance.db'; // Aquí el nombre de tu base de datos
+    final file = File(databasePath);
+
+    // Genera el archivo de exportación
+    final now = DateTime.now();
+    final exportPath = '${directory.path}/backup_${now.toString()}.db';
+    await file.copy(exportPath);
+
+    return exportPath; // Retorna la ruta del archivo exportado
+  }
+
+  Future<void> importDatabase(String path) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final databasePath = directory.path + '/app_finance.db';
+    final backupFile = File(path);
+
+    // Copia el archivo de respaldo al directorio de la base de datos
+    await backupFile.copy(databasePath);
+  }
 
   Future<Database> get database async {
     if (_database != null) return _database!;

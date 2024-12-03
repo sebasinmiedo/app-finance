@@ -581,17 +581,18 @@ class _GraficosScreenState extends State<GraficosScreen> {
                               children: [
                                 Padding(
                                   padding: const EdgeInsets.all(8),
-                                  child: Text(item['presupuesto']),
+                                  child:
+                                      Text(item['presupuesto'] ?? 'Sin nombre'),
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.all(8),
                                   child: Text(
-                                      'S/. ${item['monto_presupuesto'].toStringAsFixed(2)}'),
+                                      'S/. ${item['monto_presupuesto']?.toStringAsFixed(2) ?? '0.00'}'),
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.all(8),
                                   child: Text(
-                                      'S/. ${item['total_gastos'].toStringAsFixed(2)}'),
+                                      'S/. ${item['total_gastos']?.toStringAsFixed(2) ?? '0.00'}'),
                                 ),
                               ],
                             ),
