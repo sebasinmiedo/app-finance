@@ -39,6 +39,7 @@ dependencies:
   permission_handler: ^10.2.0
   month_year_picker: ^0.4.0+1
   table_calendar: ^3.0.8
+  url_launcher: ^6.1.10
   flutter_localizations:
     sdk: flutter
 
@@ -50,6 +51,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  image_path: "assets/logo512.png"
+  android: true
+  ios: true
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
