@@ -80,6 +80,101 @@ class BasedatoHelper {
     );
   }
 
+  Future<Map<String, double>> obtenerTotalesPorMes(DateTime fecha) async {
+    final db = await database;
+
+    // Obtén el año y mes del `fecha` seleccionada
+    String mesStr = '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}';
+
+    // Consulta para sumar los ingresos y egresos del mes
+    final result = await db.rawQuery('''
+    SELECT 
+      tipo, 
+      SUM(monto) AS total
+    FROM 
+      transacciones
+    WHERE 
+      strftime('%Y-%m', fecha) = ?
+    GROUP BY 
+      tipo
+  ''', [mesStr]);
+
+    // Procesar resultados para separar ingresos y egresos
+    double totalIngresos = 0.0;
+    double totalEgresos = 0.0;
+    for (var row in result) {
+      if (row['tipo'] == 'ingreso') {
+        totalIngresos = (row['total'] as num?)?.toDouble() ?? 0.0;
+      } else if (row['tipo'] == 'egreso') {
+        totalEgresos = (row['total'] as num?)?.toDouble() ?? 0.0;
+      }
+    }
+
+    return {'ingresos': totalIngresos, 'egresos': totalEgresos};
+  }
+
+  Future<Map<String, double>> obtenerTotalesPorDia(DateTime fecha) async {
+    final db = await database;
+
+    // Convierte la fecha al formato `YYYY-MM-DD`
+    String fechaStr = fecha.toIso8601String().split('T').first;
+
+    // Consulta para sumar los ingresos y egresos del día
+    final result = await db.rawQuery('''
+    SELECT 
+      tipo, 
+      SUM(monto) AS total
+    FROM 
+      transacciones
+    WHERE 
+      date(fecha) = ?
+    GROUP BY 
+      tipo
+  ''', [fechaStr]);
+
+    // Procesar resultados para separar ingresos y egresos
+    double totalIngresos = 0.0;
+    double totalEgresos = 0.0;
+    for (var row in result) {
+      if (row['tipo'] == 'ingreso') {
+        totalIngresos = (row['total'] as num?)?.toDouble() ?? 0.0;
+      } else if (row['tipo'] == 'egreso') {
+        totalEgresos = (row['total'] as num?)?.toDouble() ?? 0.0;
+      }
+    }
+
+    return {'ingresos': totalIngresos, 'egresos': totalEgresos};
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerTransaccionesPorFecha(
+      DateTime fecha) async {
+    final db = await database;
+
+    // Convierte la fecha al formato `YYYY-MM-DD`
+    String fechaStr = fecha.toIso8601String().split('T').first;
+
+    // Consulta con JOIN para obtener información adicional
+    return await db.rawQuery('''
+    SELECT 
+      t.id AS transaccion_id, 
+      t.titulo, 
+      t.descripcion, 
+      t.monto, 
+      t.fecha, 
+      t.tipo, 
+      c.nombre AS categoria_nombre, 
+      g.nombre AS grupo_nombre
+    FROM 
+      transacciones t
+    JOIN 
+      categorias c ON t.categoria_id = c.id
+    JOIN 
+      grupos g ON c.grupo_id = g.id
+    WHERE 
+      date(t.fecha) = ?
+  ''', [fechaStr]);
+  }
+
   Future<List<Map<String, dynamic>>> obtenerTransaccionesPorRango(
       DateTime inicio, DateTime fin) async {
     final db = await database; // Obtén la instancia de la base de datos
