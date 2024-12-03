@@ -80,6 +80,81 @@ class BasedatoHelper {
     );
   }
 
+  Future<List<Map<String, dynamic>>> _cargarPresupuestosYGastos() async {
+    final db = await database; // Asegúrate de tener esta función
+    final presupuestos = await db.rawQuery('''
+    SELECT 
+      presupuestos.id AS presupuesto_id,
+      categorias.nombre AS presupuesto,
+      presupuestos.monto AS monto_presupuesto,
+      (SELECT SUM(monto) FROM transacciones 
+       WHERE transacciones.categoria_id = presupuestos.categoria_id 
+       AND transacciones.fecha BETWEEN presupuestos.inicio AND presupuestos.fin) 
+       AS total_gastos
+    FROM presupuestos
+    LEFT JOIN categorias ON presupuestos.categoria_id = categorias.id
+  ''');
+
+    return presupuestos;
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerPresupuestosConGastos(
+      DateTime inicioMes, DateTime finMes) async {
+    final db = await database;
+    return await db.rawQuery('''
+ SELECT p.nombre AS presupuesto, 
+        p.monto AS monto_presupuesto, 
+        COALESCE(SUM(t.monto), 0) AS total_gastos
+ FROM presupuestos p
+ LEFT JOIN transacciones t ON t.tipo = 'egreso' 
+   AND t.fecha BETWEEN ? AND ?
+   AND p.id = t.presupuesto_id
+ WHERE p.inicio BETWEEN ? AND ?
+    OR p.fin BETWEEN ? AND ?
+ GROUP BY p.id
+''', [
+      inicioMes.toIso8601String(),
+      finMes.toIso8601String(),
+      inicioMes.toIso8601String(),
+      finMes.toIso8601String(),
+      inicioMes.toIso8601String(),
+      finMes.toIso8601String(),
+    ]);
+  }
+
+  Future<List<Map<String, dynamic>>> obtenerTotalesPorGrupo(
+      DateTime inicio, DateTime fin) async {
+    final db = await database;
+    return db.rawQuery('''
+ SELECT g.nombre AS grupo, SUM(t.monto) AS total
+ FROM transacciones t  // Cambié 'transaccion' por 'transacciones'
+ JOIN categorias c ON t.categoria_id = c.id  // Cambié 'categoria' por 'categorias'
+ JOIN grupos g ON c.grupo_id = g.id  // Cambié 'grupo' por 'grupos'
+ WHERE t.tipo = 'egreso' AND t.fecha BETWEEN ? AND ?
+ GROUP BY g.nombre
+''', [inicio.toIso8601String(), fin.toIso8601String()]);
+  }
+
+  Future<Map<int, double>> obtenerMontoEgresosPorCategoria() async {
+    final db = await database;
+
+    // Consulta para obtener el monto total de los egresos por categoría
+    final List<Map<String, dynamic>> result = await db.rawQuery('''
+    SELECT categoriaId, SUM(monto) AS totalEgresos
+    FROM Transaccion
+    WHERE tipo = 'egreso'
+    GROUP BY categoriaId
+  ''');
+
+    // Convertir los resultados a un mapa {categoriaId: montoEgresos}
+    Map<int, double> egresos = {};
+    for (var row in result) {
+      egresos[row['categoriaId']] = row['totalEgresos'] ?? 0.0;
+    }
+
+    return egresos;
+  }
+
   Future<Map<String, double>> obtenerTotalesPorMes(DateTime fecha) async {
     final db = await database;
 
@@ -247,17 +322,9 @@ class BasedatoHelper {
     return transacciones;
   }
 
-  Future<List<Map<String, dynamic>>> obtenerTotalesPorGrupo(
-      DateTime inicio, DateTime fin) async {
-    final db = await database;
-    return db.rawQuery('''
-    SELECT g.nombre AS grupo, SUM(t.monto) AS total
-    FROM transaccion t
-    JOIN categoria c ON t.categoriaId = c.id
-    JOIN grupo g ON c.grupoId = g.id
-    WHERE t.tipo = 'gasto' AND t.fecha BETWEEN ? AND ?
-    GROUP BY g.nombre
-  ''', [inicio.toIso8601String(), fin.toIso8601String()]);
+  // Función pública que llama a la privada _cargarPresupuestosYGastos()
+  Future<List<Map<String, dynamic>>> obtenerPresupuestosYGastos() async {
+    return await _cargarPresupuestosYGastos(); // Llamada a la función privada
   }
 
   // Limpia todas las tablas de la base de datos

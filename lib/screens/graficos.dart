@@ -61,6 +61,20 @@ class _GraficosScreenState extends State<GraficosScreen> {
     _cargarIngresosPorCategoria();
   }
 
+  Future<List<Map<String, dynamic>>> _cargarPresupuestosYGastos() async {
+    // Asumiendo que tienes un método en tu `BasedatoHelper` para obtener presupuestos y gastos.
+    // Este ejemplo usa un supuesto de función 'obtenerPresupuestosYGastos()'.
+    try {
+      List<Map<String, dynamic>> resultados =
+          await dbHelper.obtenerPresupuestosYGastos();
+
+      return resultados; // Devuelve los resultados obtenidos de la base de datos.
+    } catch (e) {
+      print('Error al cargar presupuestos y gastos: $e');
+      return []; // Retorna una lista vacía si ocurre un error.
+    }
+  }
+
   void _showMonthYearPicker() {
     showModalBottomSheet(
       context: context,
@@ -492,17 +506,102 @@ class _GraficosScreenState extends State<GraficosScreen> {
                 ),
               ],
             ),
-            // Otro gráfico (puedes duplicar el widget de BarChart o PieChart aquí)
-            const Text(
-              'Otro Gráfico',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              height: 300,
-              color: Colors.grey.shade300,
-              alignment: Alignment.center,
-              child: const Text('Otro tipo de gráfico aquí'),
+            FutureBuilder(
+              future: _cargarPresupuestosYGastos(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Center(child: Text('Error al cargar datos'));
+                }
+
+                final datos = snapshot.data as List<Map<String, dynamic>>;
+
+                if (datos.isEmpty) {
+                  return const Center(
+                      child: Text('No hay presupuestos para mostrar'));
+                }
+
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Comparación de Presupuestos y Gastos',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      Table(
+                        border: TableBorder.all(),
+                        columnWidths: const {
+                          0: FractionColumnWidth(0.4),
+                          1: FractionColumnWidth(0.3),
+                          2: FractionColumnWidth(0.3),
+                        },
+                        children: [
+                          // Cabeceras
+                          const TableRow(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text(
+                                  'Presupuesto',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text(
+                                  'Monto',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text(
+                                  'Gastos',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Filas con datos
+                          ...datos.map(
+                            (item) => TableRow(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Text(item['presupuesto']),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Text(
+                                      'S/. ${item['monto_presupuesto'].toStringAsFixed(2)}'),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Text(
+                                      'S/. ${item['total_gastos'].toStringAsFixed(2)}'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
